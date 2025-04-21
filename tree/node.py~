@@ -1,0 +1,23 @@
+from tree.predict import predict_single
+class DecisionNode:
+    def __init__(self, attribute=None, threshold=None, branches=None, label=None, is_leaf=False):
+        self.attribute = attribute
+        self.threshold = threshold
+        self.branches = branches or {}
+        self.label = label
+        self.is_leaf = is_leaf
+
+class DecisionNodeWithCache:
+    def __init__(self, node):
+        self.node = node
+        self.cache = {}
+
+    def predict(self, x, attribute_types):
+        cache_key = tuple(x)
+        if cache_key in self.cache:
+            return self.cache[cache_key]
+        prediction = predict_single(self.node, x, attribute_types)
+        self.cache[cache_key] = prediction
+        return prediction
+    def is_terminal(self):
+        return self.is_leaf

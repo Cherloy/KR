@@ -1,0 +1,116 @@
+from copy import deepcopy
+
+from data.load_dataset import load_iris_dataset
+from tree.builder import build_tree
+from tree.predict import predict_batch, predict_single
+from prune.post_prune import prune_tree
+from forest.random_forest import RandomForestC45
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import accuracy_score
+from data.statistics import compute_feature_stats, is_outlier
+from tree.utils import print_tree, count_nodes, tree_depth
+import copy
+
+
+def train_and_evaluate():
+    X, y, attribute_types = load_iris_dataset()
+
+    # Разбиваем на тренировочную и тестовую выборки
+    X_temp, X_test, y_temp, y_test = train_test_split(X, y, test_size=0.3, random_state=42)
+
+    feature_stats = compute_feature_stats(X)
+
+    print("===> C4.5 Decision Tree")
+    tree = build_tree(X_temp, y_temp, attribute_types)
+    print_tree(tree, attribute_types)
+    print("Глубина:", tree_depth(tree))
+    print("Узлов:", count_nodes(tree))
+
+    preds = predict_batch(tree, X_test, attribute_types)
+    acc = accuracy_score(y_test, preds)
+    print("Accuracy (before pruning):", acc)
+
+    # Глубокая копия, чтобы обрезка не изменила исходное дерево
+    tree_pruned = prune_tree(deepcopy(tree), X_test, y_test, attribute_types)
+    print_tree(tree_pruned, attribute_types)
+    print("Глубина:", tree_depth(tree_pruned))
+    print("Узлов:", count_nodes(tree_pruned))
+
+    pruned_preds = predict_batch(tree_pruned, X_test, attribute_types)
+    pruned_acc = accuracy_score(y_test, pruned_preds)
+    print("Accuracy (after pruning):", pruned_acc)
+
+    print("\n===> Random Forest")
+    forest = RandomForestC45(n_estimators=10, random_state=42)
+    forest.fit(X_temp, y_temp, attribute_types)  # Используем всю тренировочную часть без теста
+
+    # Статистика до обрезки
+    depths_before = [tree_depth(tree) for tree in forest.trees]
+    nodes_before = [count_nodes(tree) for tree in forest.trees]
+    print(f"Средняя глубина (до обрезки): {sum(depths_before) / len(depths_before):.2f}")
+    print(f"Среднее число узлов (до обрезки): {sum(nodes_before) / len(nodes_before):.2f}")
+
+    forest_preds = forest.predict(X_test)
+    forest_acc = accuracy_score(y_test, forest_preds)
+    print("Accuracy (random forest before pruning):", forest_acc)
+
+    # Постобрезка всех деревьев случайного леса
+    forest.trees = [
+        prune_tree(tree, X_test, y_test, attribute_types)
+        for tree in forest.trees
+    ]
+
+    # Статистика после обрезки
+    depths_after = [tree_depth(tree) for tree in forest.trees]
+    nodes_after = [count_nodes(tree) for tree in forest.trees]
+    print(f"\nСредняя глубина (после обрезки): {sum(depths_after) / len(depths_after):.2f}")
+    print(f"Среднее число узлов (после обрезки): {sum(nodes_after) / len(nodes_after):.2f}")
+
+    forest_preds = forest.predict(X_test)
+    forest_acc = accuracy_score(y_test, forest_preds)
+    print("Accuracy (random forest):", forest_acc)
+
+    return tree_pruned, forest, attribute_types, feature_stats
+
+
+def interactive_prediction(tree, forest, attribute_types,feature_stats):
+    feature_names = [
+        "sepal length (cm)", "sepal width (cm)", "petal length (cm)", "petal width (cm)"
+    ]
+
+    feature_descriptions = {
+        "sepal length (cm)": "Длина чашелистника (от 4.3 до 7.9 см)",
+        "sepal width (cm)": "Ширина чашелистника (от 2.0 до 4.4 см)",
+        "petal length (cm)": "Длина лепестка (от 1.0 до 6.9 см)",
+        "petal width (cm)": "Ширина лепестка (от 0.1 до 2.5 см)"
+    }
+
+    print("\n=== Интерактивный режим ===")
+    print("Введите данные ириса последовательно по признакам:")
+
+    user_input = []
+    for feature in feature_names:
+        while True:
+            print(f"\n{feature}: {feature_descriptions[feature]}")
+            try:
+                value = float(input("Введите значение: "))
+                user_input.append(value)
+                break
+            except ValueError:
+                print("Ошибка: введите числовое значение")
+    if is_outlier(user_input, feature_stats):
+        print("\n⚠️ Введены значения, которые считаются выбросами. Модель может не дать корректного предсказания.")
+        #return
+    # Предсказание с использованием дерева решений
+    tree_pred = predict_single(tree, user_input, attribute_types)
+    class_names = ["Iris-setosa", "Iris-versicolor", "Iris-virginica"]
+    print(f"\nДерево решений: {class_names[tree_pred] if tree_pred is not None else 'Ошибка классификации'}")
+
+    # Предсказание с использованием случайного леса
+    forest_pred = forest.predict([user_input])[0]
+    print(f"Случайный лес: {class_names[forest_pred] if forest_pred is not None else 'Ошибка классификации'}")
+
+
+if __name__ == "__main__":
+    trained_tree, trained_forest, attribute_types,feature_stats = train_and_evaluate()
+    interactive_prediction(trained_tree, trained_forest, attribute_types,feature_stats)

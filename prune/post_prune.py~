@@ -1,0 +1,45 @@
+from collections import Counter
+from tree.node import DecisionNode
+from tree.predict import predict_batch
+
+def majority_class(labels):
+    return Counter(labels).most_common(1)[0][0]
+
+def compute_accuracy(tree, dataset, labels, attribute_types):
+    predictions = predict_batch(tree, dataset, attribute_types)
+    correct = sum(p == y for p, y in zip(predictions, labels) if p is not None)
+    return correct / len(labels)
+
+def prune_tree(node, validation_data, validation_labels, attribute_types):
+    if node.is_leaf or not validation_data:
+        return node
+
+    if node.threshold is not None:
+        left_data, left_labels, right_data, right_labels = [], [], [], []
+        for x, y in zip(validation_data, validation_labels):
+            if x[node.attribute] <= node.threshold:
+                left_data.append(x)
+                left_labels.append(y)
+            else:
+                right_data.append(x)
+                right_labels.append(y)
+        node.branches['<='] = prune_tree(node.branches['<='], left_data, left_labels, attribute_types)
+        node.branches['>'] = prune_tree(node.branches['>'], right_data, right_labels, attribute_types)
+    else:
+        split_map = {}
+        for x, y in zip(validation_data, validation_labels):
+            key = x[node.attribute]
+            if key not in split_map:
+                split_map[key] = ([], [])
+            split_map[key][0].append(x)
+            split_map[key][1].append(y)
+        for key in node.branches:
+            if key in split_map:
+                node.branches[key] = prune_tree(node.branches[key], split_map[key][0], split_map[key][1], attribute_types)
+
+    original_accuracy = compute_accuracy(node, validation_data, validation_labels, attribute_types)
+    majority = majority_class(validation_labels)
+    temp_leaf = DecisionNode(label=majority, is_leaf=True)
+    pruned_accuracy = compute_accuracy(temp_leaf, validation_data, validation_labels, attribute_types)
+
+    return temp_leaf if pruned_accuracy >= original_accuracy else node

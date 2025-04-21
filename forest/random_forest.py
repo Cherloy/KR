@@ -1,0 +1,41 @@
+import random
+from collections import Counter
+from tree.builder import build_tree
+from tree.predict import predict_single
+
+class RandomForestC45:
+    def __init__(self, n_estimators=10, sample_ratio=0.8, min_samples_split=2, random_state=None):
+        self.n_estimators = n_estimators
+        self.sample_ratio = sample_ratio
+        self.min_samples_split = min_samples_split
+        self.random_state = random_state
+        self.trees = []
+        self.attribute_types = None
+
+    def fit(self, dataset, labels, attribute_types):
+        if self.random_state:
+            random.seed(self.random_state)
+        self.attribute_types = attribute_types
+        self.trees = []
+        n_samples = len(dataset)
+        for _ in range(self.n_estimators):
+            indices = [random.randint(0, n_samples - 1) for _ in range(int(n_samples * self.sample_ratio))]
+            sampled_data = [dataset[i] for i in indices]
+            sampled_labels = [labels[i] for i in indices]
+            tree = build_tree(sampled_data, sampled_labels, attribute_types, self.min_samples_split)
+            self.trees.append(tree)
+
+    def predict(self, dataset):
+        predictions = []
+        for x in dataset:
+            votes = []
+            for tree in self.trees:
+                pred = predict_single(tree, x, self.attribute_types)
+                if pred is not None:
+                    votes.append(pred)
+            if votes:
+                majority = Counter(votes).most_common(1)[0][0]
+                predictions.append(majority)
+            else:
+                predictions.append(None)
+        return predictions
