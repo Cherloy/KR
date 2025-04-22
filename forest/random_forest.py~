@@ -1,61 +1,41 @@
 import random
-from collections import Counter, defaultdict
+from collections import Counter
 from tree.builder import build_tree
-from tree.predict import predict_single, predict_batch  # если predict_batch нет — можно реализовать отдельно
+from tree.predict import predict_single
 
 class RandomForestC45:
-    def __init__(self, n_estimators=10, sample_ratio=0.8, min_samples_split=2, random_state=None):
+    def __init__(self, n_estimators=100, sample_ratio=0.8, min_samples_split=2, random_state=None):
         self.n_estimators = n_estimators
         self.sample_ratio = sample_ratio
         self.min_samples_split = min_samples_split
         self.random_state = random_state
         self.trees = []
-        self.tree_weights = []
         self.attribute_types = None
 
-    def compute_accuracy(self, predictions, labels):
-        correct = sum(p == y for p, y in zip(predictions, labels) if p is not None)
-        return correct / len(labels) if labels else 0
-
     def fit(self, dataset, labels, attribute_types):
-        if self.random_state is not None:
+        if self.random_state:
             random.seed(self.random_state)
-
         self.attribute_types = attribute_types
         self.trees = []
-        self.tree_weights = []
         n_samples = len(dataset)
-
         for _ in range(self.n_estimators):
             indices = [random.randint(0, n_samples - 1) for _ in range(int(n_samples * self.sample_ratio))]
-            sampled_set = set(indices)
             sampled_data = [dataset[i] for i in indices]
             sampled_labels = [labels[i] for i in indices]
-
             tree = build_tree(sampled_data, sampled_labels, attribute_types, self.min_samples_split)
             self.trees.append(tree)
-
-            # OOB-примеры
-            oob_data = [dataset[i] for i in range(n_samples) if i not in sampled_set]
-            oob_labels = [labels[i] for i in range(n_samples) if i not in sampled_set]
-            if oob_data:
-                oob_preds = predict_batch(tree, oob_data, attribute_types)
-                acc = self.compute_accuracy(oob_preds, oob_labels)
-            else:
-                acc = 0.5  # если нет OOB-примеров — нейтральный вес
-            self.tree_weights.append(acc)
 
     def predict(self, dataset):
         predictions = []
         for x in dataset:
-            class_weights = defaultdict(float)
-            for tree, weight in zip(self.trees, self.tree_weights):
+            votes = []
+            for tree in self.trees:
                 pred = predict_single(tree, x, self.attribute_types)
                 if pred is not None:
-                    class_weights[pred] += weight
-            if class_weights:
-                predicted_label = max(class_weights.items(), key=lambda item: item[1])[0]
-                predictions.append(predicted_label)
+                    votes.append(pred)
+            if votes:
+                majority = Counter(votes).most_common(1)[0][0]
+                predictions.append(majority)
             else:
                 predictions.append(None)
         return predictions
