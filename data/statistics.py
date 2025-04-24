@@ -71,8 +71,8 @@ def is_outlier(sample, feature_stats, attribute_types):
     for value, stats, attr_type in zip(sample, feature_stats, attribute_types):
         # Проверяем только числовые признаки
         if attr_type == 'numerical' and stats['iqr'] is not None:
-            lower_bound = stats['q1'] - 1.5 * stats['iqr']
-            upper_bound = stats['q3'] + 1.5 * stats['iqr']
+            lower_bound = stats['q1'] - 3 * stats['iqr']
+            upper_bound = stats['q3'] + 3 * stats['iqr']
             if value < lower_bound or value > upper_bound:
                 return True
     return False

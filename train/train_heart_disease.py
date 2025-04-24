@@ -1,4 +1,4 @@
-from data.load_dataset_cat import load_iris_dataset
+from data.load_dataset import load_iris_dataset
 from tree.builder import build_tree
 from tree.predict import predict_batch, predict_single
 from prune.post_prune import prune_tree
@@ -36,7 +36,7 @@ def train_and_evaluate():
     # Обучение и оценка дерева решений
     print("===> C4.5 Decision Tree")
     tree = build_tree(build_samples, build_labels, attribute_types)
-    print_tree(tree, attribute_types)
+    print_tree(tree, attribute_names=feature_names, attribute_types=attribute_types)
     print("Глубина:", tree_depth(tree))
     print("Узлов:", count_nodes(tree))
 
@@ -45,8 +45,8 @@ def train_and_evaluate():
     print("Accuracy (before pruning):", accuracy)
 
     # Обрезаем дерево
-    pruned_tree = prune_tree(deepcopy(tree), val_samples, val_labels, attribute_types)
-    print_tree(pruned_tree, attribute_types)
+    pruned_tree = prune_tree(tree, val_samples, val_labels, attribute_types)
+    print_tree(pruned_tree, attribute_names=feature_names, attribute_types=attribute_types)
     print("Глубина:", tree_depth(pruned_tree))
     print("Узлов:", count_nodes(pruned_tree))
 
@@ -92,32 +92,16 @@ def interactive_prediction(tree, forest, attribute_types, feature_stats, feature
     Интерактивно запрашивает значения признаков у пользователя и делает предсказания.
 
     Для числовых признаков показывает диапазон (min-max), для категориальных — возможные значения.
-    Обрабатывает строковые метки классов (например, 'e', 'p') и сопоставляет их с именами классов.
-
-    Args:
-        tree: Обрезанное дерево решений C4.5.
-        forest: Случайный лес.
-        attribute_types: Список типов признаков ('numerical' или 'categorical').
-        feature_stats: Список словарей со статистиками признаков.
-        feature_names: Список имен признаков.
-        class_names: Список имен классов (например, ['edible', 'poisonous']).
+    Выводит человеко-читаемые названия классов из class_names.
     """
-    # Проверяем согласованность данных
     if len(feature_names) != len(feature_stats) or len(feature_names) != len(attribute_types):
         raise ValueError("Несоответствие количества признаков в feature_names, feature_stats или attribute_types")
 
-    # Создаем словарь для сопоставления меток классов с их именами
-    # Предполагаем, что метки 'e' и 'p' соответствуют 'edible' и 'poisonous'
-    label_to_class = {'e': 'edible', 'p': 'poisonous'}
-
-    # Формируем описания признаков
     feature_descriptions = {}
     for i, (name, stats, attr_type) in enumerate(zip(feature_names, feature_stats, attribute_types)):
         if attr_type == 'numerical' and stats.get('min') is not None:
-            # Для числовых признаков показываем диапазон
             description = f"{name} (от {stats['min']:.1f} до {stats['max']:.1f})"
         else:
-            # Для категориальных признаков показываем возможные значения
             values = ', '.join(f"'{k}'" for k in stats.get('value_counts', {}).keys())
             description = f"{name} (возможные значения: {values or 'неизвестно'})"
         feature_descriptions[name] = description
@@ -133,12 +117,9 @@ def interactive_prediction(tree, forest, attribute_types, feature_stats, feature
             try:
                 user_value = input("Введите значение: ")
                 if attr_type == 'numerical':
-                    # Для числовых признаков ожидаем число
                     value = float(user_value)
                 else:
-                    # Для категориальных признаков принимаем строку
                     value = user_value.strip()
-                    # Проверяем, что значение допустимо
                     if value not in feature_stats[i].get('value_counts', {}):
                         print(f"Предупреждение: значение '{value}' не встречалось в данных.")
                 user_input.append(value)
@@ -146,18 +127,23 @@ def interactive_prediction(tree, forest, attribute_types, feature_stats, feature
             except ValueError:
                 print("Ошибка: введите число для числового признака или корректное значение для категориального")
 
-    # Проверяем, является ли введенный объект выбросом (только для числовых признаков)
     if is_outlier(user_input, feature_stats, attribute_types):
-        print("\n⚠️ Введены значения, которые считаются выбросами. Модель может не дать корректного предсказания.")
+        print("\n️ Введены значения, которые считаются выбросами. Модель может не дать корректного предсказания.")
 
-    # Предсказание с использованием дерева решений
+    # Предсказание от дерева
     tree_prediction = predict_single(tree, user_input, attribute_types)
-    tree_class = label_to_class.get(tree_prediction, 'Ошибка классификации')
+    try:
+        tree_class = class_names[int(tree_prediction)]
+    except (ValueError, IndexError):
+        tree_class = f"Неизвестный класс ({tree_prediction})"
     print(f"\nДерево решений: {tree_class}")
 
-    # Предсказание с использованием случайного леса
+    # Предсказание от случайного леса
     forest_prediction = forest.predict([user_input])[0]
-    forest_class = label_to_class.get(forest_prediction, 'Ошибка классификации')
+    try:
+        forest_class = class_names[int(forest_prediction)]
+    except (ValueError, IndexError):
+        forest_class = f"Неизвестный класс ({forest_prediction})"
     print(f"Случайный лес: {forest_class}")
 
 if __name__ == "__main__":

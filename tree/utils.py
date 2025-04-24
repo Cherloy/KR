@@ -17,7 +17,7 @@ def print_tree(node, attribute_names=None, indent="", attribute_types=None):
         return
 
     # Получаем имя признака
-    name = f"Attr {node.attribute}" if not attribute_names else attribute_names[node.attribute]
+    name = f"Attr {node.attribute}" if attribute_names is None else attribute_names[node.attribute]
     attr_type = attribute_types[node.attribute] if attribute_types else 'unknown'
 
     if node.threshold is not None and attr_type != 'categorical':

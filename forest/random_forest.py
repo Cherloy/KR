@@ -4,7 +4,7 @@ from tree.builder import build_tree
 from tree.predict import predict_single
 
 class RandomForestC45:
-    def __init__(self, n_estimators=10, sample_ratio=0.8, min_samples_split=2, random_state=None):
+    def __init__(self, n_estimators=10, sample_ratio=1, min_samples_split=2, random_state=None):
         self.n_estimators = n_estimators
         self.sample_ratio = sample_ratio
         self.min_samples_split = min_samples_split

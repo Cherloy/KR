@@ -3,7 +3,7 @@ import numpy as np
 import numpy as np
 
 def load_iris_dataset(threshold=10):
-    iris = load_breast_cancer()
+    iris = load_digits()
     x = iris.data
     y = iris.target
     feature_names = iris.feature_names
