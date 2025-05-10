@@ -29,33 +29,34 @@ def compute_error(predictions, true_labels):
     """
     return sum(pred != true_label for pred, true_label in zip(predictions, true_labels) if pred is not None)
 
-def pessimistic_error_with_CI(error_count, total_samples, z_score):
+def pessimistic_error_with_CI(errors, total, z_score):
     """
     Вычисляет пессимистическую оценку ошибки с учетом доверительного интервала.
 
     Args:
-        error_count: Количество ошибок.
-        total_samples: Общее количество примеров.
-        z_score: Z-значение для доверительного интервала.
+        errors: Количество ошибок.
+        total: Общее количество примеров.
+        z_score: Z-значение для доверительного интервала (зависит от уровня доверия).
 
     Returns:
         Пессимистическая оценка доли ошибок.
     """
-    if total_samples == 0:
+    if total == 0:
         return 0
 
-    error_rate = error_count / total_samples
-    variance_term = error_rate * (1 - error_rate) / total_samples
-    correction_term = z_score**2 / (4 * total_samples**2)
+    error_rate = errors / total
+    variance_term = error_rate * (1 - error_rate) / total
+    correction_term = z_score**2 / (4 * total**2)
 
-    numerator = error_rate + (z_score**2 / (2 * total_samples)) + z_score * math.sqrt(variance_term + correction_term)
-    denominator = 1 + z_score**2 / total_samples
+    # Формула пессимистической ошибки
+    numerator = error_rate + (z_score**2 / (2 * total)) + z_score * math.sqrt(variance_term + correction_term)
+    denominator = 1 + z_score**2 / total
 
     return numerator / denominator
 
-def prune_tree(node, validation_samples, validation_labels, attribute_types, confidence_factor=0.25, error_tolerance=1.1):
+def prune_tree(node, validation_samples, validation_labels, attribute_types, confidence_factor=0.25):
     """
-    Рекурсивно обрезает дерево решений, заменяя поддеревья на листья, если это снижает ошибку.
+    Рекурсивно обрезает дерево решений, сравнивая ошибки до и после обрезки.
 
     Args:
         node: Текущий узел дерева (DecisionNode).
@@ -63,17 +64,16 @@ def prune_tree(node, validation_samples, validation_labels, attribute_types, con
         validation_labels: Метки классов для валидационных данных.
         attribute_types: Список типов атрибутов ('numerical' или 'categorical').
         confidence_factor: Уровень значимости для доверительного интервала (по умолчанию 0.25).
-        error_tolerance: Допустимое увеличение ошибки листа (по умолчанию 1.1, т.е. +10%).
 
     Returns:
         Обрезанный узел или исходный узел, если обрезка не улучшает результат.
     """
-    # Если узел — лист или нет данных, возвращаем узел без изменений
+    # Если узел — лист или нет валидационных данных, возвращаем его без изменений
     if node.is_leaf or not validation_samples:
         return node
 
-    # Разделяем данные для дочерних узлов
-    if node.threshold is not None and attribute_types[node.attribute] == 'numerical':
+    # Разделяем валидационные данные для дочерних узлов
+    if node.threshold is not None:
         # Числовой атрибут: разделяем на ≤ порога и > порога
         left_samples, left_labels = [], []
         right_samples, right_labels = [], []
@@ -87,15 +87,15 @@ def prune_tree(node, validation_samples, validation_labels, attribute_types, con
                 right_samples.append(sample)
                 right_labels.append(label)
 
-        # Рекурсивно обрезаем ветви
+        # Рекурсивно обрезаем дочерние ветви
         node.branches['<='] = prune_tree(
-            node.branches['<='], left_samples, left_labels, attribute_types, confidence_factor, error_tolerance
+            node.branches['<='], left_samples, left_labels, attribute_types, confidence_factor
         )
         node.branches['>'] = prune_tree(
-            node.branches['>'], right_samples, right_labels, attribute_types, confidence_factor, error_tolerance
+            node.branches['>'], right_samples, right_labels, attribute_types, confidence_factor
         )
     else:
-        # Категориальный атрибут: группируем данные по значениям
+        # Категориальный атрибут: группируем данные по значениям атрибута
         category_groups = {}
         for sample, label in zip(validation_samples, validation_labels):
             category = sample[node.attribute]
@@ -106,17 +106,20 @@ def prune_tree(node, validation_samples, validation_labels, attribute_types, con
 
         # Рекурсивно обрезаем ветви для существующих категорий
         for category in node.branches:
-            samples = category_groups.get(category, ([], []))[0]
-            labels = category_groups.get(category, ([], []))[1]
-            node.branches[category] = prune_tree(
-                node.branches[category], samples, labels, attribute_types, confidence_factor, error_tolerance
-            )
+            if category in category_groups:
+                node.branches[category] = prune_tree(
+                    node.branches[category],
+                    category_groups[category][0],
+                    category_groups[category][1],
+                    attribute_types,
+                    confidence_factor
+                )
 
-    # Оцениваем ошибки текущего поддерева
+    # Оцениваем ошибки текущего дерева
     current_predictions = predict_batch(node, validation_samples, attribute_types)
     current_error_count = compute_error(current_predictions, validation_labels)
 
-    # Оцениваем ошибки для листа с мажоритарной меткой
+    # Оцениваем ошибки, если заменить узел на лист с мажоритарной меткой
     majority_label = majority_class(validation_labels)
     leaf_node = DecisionNode(label=majority_label, is_leaf=True)
     leaf_predictions = [majority_label for _ in validation_labels]
@@ -124,14 +127,14 @@ def prune_tree(node, validation_samples, validation_labels, attribute_types, con
 
     # Вычисляем пессимистические оценки ошибок
     z_score = norm.ppf(1 - confidence_factor)
-    current_error_rate = pessimistic_error_with_CI(current_error_count, len(validation_labels), z_score)
-    leaf_error_rate = pessimistic_error_with_CI(leaf_error_count, len(validation_labels), z_score)
+    current_error_rate = pessimistic_error_with_CI(
+        current_error_count, len(validation_labels), z_score
+    )
+    leaf_error_rate = pessimistic_error_with_CI(
+        leaf_error_count, len(validation_labels), z_score
+    )
 
-    # Диагностика: выводим ошибки для анализа
-    attr_name = node.attribute if hasattr(node, 'attribute') else 'root'
-    print(f"Node {attr_name}: current_error={current_error_count}/{len(validation_labels)}, "
-          f"leaf_error={leaf_error_count}/{len(validation_labels)}, "
-          f"current_rate={current_error_rate:.4f}, leaf_rate={leaf_error_rate:.4f}")
-
-    # Если лист дает допустимую ошибку (с учетом tolerance), заменяем поддерево на лист
-    return leaf_node if leaf_error_rate <= current_error_rate * error_tolerance else node
+    # Если лист дает меньшую или равную ошибку, заменяем узел на лист
+    if leaf_error_rate <= current_error_rate*5:
+        return leaf_node
+    return node

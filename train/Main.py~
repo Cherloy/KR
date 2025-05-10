@@ -2,14 +2,13 @@ from data.load_dataset import load_iris_dataset
 from tree.builder import build_tree
 from tree.predict import predict_batch, predict_single
 from prune.post_prune import prune_tree
-from forest.random_forest import RandomForestC45
+from forest.random_forest_weight import RandomForestC45
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score
 from data.statistics import compute_feature_stats, is_outlier
 from tree.utils import print_tree, count_nodes, tree_depth
-from copy import deepcopy
 
-def train_and_evaluate():
+def train_and_evaluate(forest_verbose= False):
     """
     Обучает и оценивает дерево решений C4.5 и случайный лес на датасете.
 
@@ -22,12 +21,12 @@ def train_and_evaluate():
 
     # Разделяем данные на тренировочные и тестовые
     temp_samples, test_samples, temp_labels, test_labels = train_test_split(
-        samples, labels, test_size=0.2, random_state=42
+        samples, labels, test_size=0.2
     )
 
     # Делим тренировочные данные на build и validation
     build_samples, val_samples, build_labels, val_labels = train_test_split(
-        temp_samples, temp_labels, test_size=0.2, random_state=42
+        temp_samples, temp_labels, test_size=0.2
     )
 
     # Вычисляем статистики признаков
@@ -69,16 +68,27 @@ def train_and_evaluate():
     forest_accuracy = accuracy_score(test_labels, forest_predictions)
     print("Accuracy (random forest before pruning):", forest_accuracy)
 
+    if forest_verbose:
+        print("\n===> Random Forest Trees (Before Pruning)")
+        for i, tree in enumerate(forest.trees):
+            print(f"\nTree {i + 1}:")
+            print_tree(tree, attribute_names=feature_names, attribute_types=attribute_types)
+
     # Обрезаем все деревья в лесу
     forest.trees = [
         prune_tree(tree, val_samples, val_labels, attribute_types)
         for tree in forest.trees
     ]
+    if forest_verbose:
+        print("\n===> Random Forest Trees (Before Pruning)")
+        for i, tree in enumerate(forest.trees):
+            print(f"\nTree {i + 1}:")
+            print_tree(tree, attribute_names=feature_names, attribute_types=attribute_types)
 
     # Статистика леса после обрезки
     depths_after = [tree_depth(tree) for tree in forest.trees]
     nodes_after = [count_nodes(tree) for tree in forest.trees]
-    print(f"Средняя глубина (после обрезки): {sum(depths_after) / len(depths_after):.2f}")
+    print(f"\nСредняя глубина (после обрезки): {sum(depths_after) / len(depths_after):.2f}")
     print(f"Среднее число узлов (после обрезки): {sum(nodes_after) / len(nodes_after):.2f}")
 
     forest_predictions = forest.predict(test_samples)

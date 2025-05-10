@@ -8,7 +8,7 @@ from sklearn.metrics import accuracy_score
 from data.statistics import compute_feature_stats, is_outlier
 from tree.utils import print_tree, count_nodes, tree_depth
 
-def train_and_evaluate(forest_verbose= True):
+def train_and_evaluate(forest_verbose= False):
     """
     Обучает и оценивает дерево решений C4.5 и случайный лес на датасете.
 
