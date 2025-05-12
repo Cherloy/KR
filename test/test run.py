@@ -1,5 +1,5 @@
 import time
-from data.load_dataset import load_iris_dataset
+from data.load_dataset_cat import load_iris_dataset
 from tree.builder import build_tree as build_tree_no_cache
 from builder_with_cache import build_tree as build_tree_cached
 

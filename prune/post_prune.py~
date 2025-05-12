@@ -54,7 +54,7 @@ def pessimistic_error_with_CI(errors, total, z_score):
 
     return numerator / denominator
 
-def prune_tree(node, validation_samples, validation_labels, attribute_types, confidence_factor=0.25):
+def prune_tree(node, validation_samples, validation_labels, attribute_types, confidence_factor=0.01, error_tolerance =3):
     """
     Рекурсивно обрезает дерево решений, сравнивая ошибки до и после обрезки.
 
@@ -135,6 +135,6 @@ def prune_tree(node, validation_samples, validation_labels, attribute_types, con
     )
 
     # Если лист дает меньшую или равную ошибку, заменяем узел на лист
-    if leaf_error_rate <= current_error_rate*5:
+    if leaf_error_rate <= current_error_rate * error_tolerance:
         return leaf_node
     return node

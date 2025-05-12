@@ -1,4 +1,5 @@
 import math
+import random  # Добавляем random для выборки признаков
 from collections import Counter
 from tree.node import DecisionNode
 from tree.splitter import split_numeric, split_categorical, generate_numeric_thresholds
@@ -13,14 +14,6 @@ def find_most_common_label(labels):
 def calculate_gain_ratio(parent_labels, child_groups, child_weights):
     """
     Вычисляет Gain Ratio с учетом пропущенных значений.
-
-    Args:
-        parent_labels: Метки классов до разбиения.
-        child_groups: Список групп меток после разбиения.
-        child_weights: Веса групп (учитывают пропущенные значения).
-
-    Returns:
-        Gain Ratio (информационный прирост, нормированный на информацию о разбиении).
     """
     total_weight = sum(child_weights)
 
@@ -31,24 +24,23 @@ def calculate_gain_ratio(parent_labels, child_groups, child_weights):
         if weight > 0
     )
 
-    # Информационный прирост = энтропия родителя - взвешенная энтропия детей
+    # Информационный прирост
     information_gain = entropy(parent_labels) - weighted_child_entropy
 
-    # Информация о разбиении (энтропия распределения весов)
+    # Информация о разбиении
     split_information = -sum(
         (weight / total_weight) * math.log2(weight / total_weight)
         for weight in child_weights
         if weight > 0
     )
 
-    # Если split_information равно 0, разбиение бессмысленно
     if split_information == 0:
         return 0
 
     return information_gain / split_information
 
 
-def find_best_split(data, labels, attribute_types, verbose=False):
+def find_best_split(data, labels, attribute_types, max_features=None, verbose=False):
     """
     Находит лучший атрибут и порог для разбиения данных.
 
@@ -56,6 +48,7 @@ def find_best_split(data, labels, attribute_types, verbose=False):
         data: Список объектов (каждый объект - список значений атрибутов).
         labels: Метки классов для каждого объекта.
         attribute_types: Список типов атрибутов ('numerical' или 'categorical').
+        max_features: Максимальное количество признаков для рассмотрения (int или float, например, 'sqrt').
         verbose: Если True, выводит отладочную информацию.
 
     Returns:
@@ -67,9 +60,27 @@ def find_best_split(data, labels, attribute_types, verbose=False):
     best_split_data = None
 
     total_samples = len(data)
+    n_features = len(data[0])
 
-    # Перебираем все атрибуты
-    for attr_index in range(len(data[0])):
+    # Определяем, какие признаки рассматривать
+    if max_features is None:
+        feature_indices = list(range(n_features))  # Все признаки
+    else:
+        # Вычисляем количество признаков для выборки
+        if max_features == 'sqrt':
+            n_subset = int(math.sqrt(n_features))
+        elif max_features == 'log2':
+            n_subset = int(math.log2(n_features))
+        elif isinstance(max_features, float):
+            n_subset = int(max_features * n_features)
+        else:
+            n_subset = max_features
+        # Случайно выбираем подмножество признаков
+        n_subset = min(n_subset, n_features)  # Убедимся, что не превышаем число признаков
+        feature_indices = random.sample(range(n_features), n_subset)
+
+    # Перебираем только выбранные признаки
+    for attr_index in feature_indices:
         # Разделяем данные на известные и пропущенные
         known_samples, known_labels = [], []
         missing_samples, missing_labels = [], []
@@ -96,22 +107,18 @@ def find_best_split(data, labels, attribute_types, verbose=False):
                 left_samples, left_labels = left
                 right_samples, right_labels = right
 
-                # Пропускаем, если одна из групп пуста
                 if not left_labels or not right_labels:
                     continue
 
-                # Вычисляем веса групп
                 left_weight = len(left_labels)
                 right_weight = len(right_labels)
                 total_known = left_weight + right_weight
 
-                # Распределяем пропущенные значения пропорционально
                 left_labels_with_missing = left_labels + missing_labels
                 right_labels_with_missing = right_labels + missing_labels
                 left_weight += len(missing_labels) * (left_weight / total_known)
                 right_weight += len(missing_labels) * (right_weight / total_known)
 
-                # Вычисляем Gain Ratio
                 gain_ratio = calculate_gain_ratio(
                     labels,
                     [left_labels_with_missing, right_labels_with_missing],
@@ -121,7 +128,6 @@ def find_best_split(data, labels, attribute_types, verbose=False):
                 if verbose:
                     print(f"[NUM] Attribute {attr_index}, threshold {threshold:.3f}, gain ratio = {gain_ratio:.4f}")
 
-                # Обновляем лучшее разбиение, если текущее лучше
                 if gain_ratio > best_gain_ratio:
                     best_gain_ratio = gain_ratio
                     best_attribute = attr_index
@@ -158,7 +164,7 @@ def find_best_split(data, labels, attribute_types, verbose=False):
     return best_attribute, best_threshold, best_split_data
 
 
-def build_tree(data, labels, attribute_types, min_samples_split=2, depth=0):
+def build_tree(data, labels, attribute_types, min_samples_split=2, max_features=None, depth=0):
     """
     Рекурсивно строит дерево решений.
 
@@ -167,44 +173,38 @@ def build_tree(data, labels, attribute_types, min_samples_split=2, depth=0):
         labels: Метки классов.
         attribute_types: Типы атрибутов ('numerical' или 'categorical').
         min_samples_split: Минимальное количество объектов для разбиения.
+        max_features: Максимальное количество признаков для рассмотрения (int, float, 'sqrt' или 'log2').
         depth: Текущая глубина дерева.
 
     Returns:
         Узел дерева (DecisionNode).
     """
-    # Если все метки одинаковы, создаем лист
     if len(set(labels)) == 1:
         return DecisionNode(label=labels[0], is_leaf=True)
 
-    # Если слишком мало данных, создаем лист с наиболее частой меткой
     if len(data) < min_samples_split:
         return DecisionNode(label=find_most_common_label(labels), is_leaf=True)
 
-    # Находим лучшее разбиение
-    best_attribute, best_threshold, best_split_data = find_best_split(data, labels, attribute_types)
+    # Передаем max_features в find_best_split
+    best_attribute, best_threshold, best_split_data = find_best_split(data, labels, attribute_types, max_features)
 
-    # Если разбиение невозможно, создаем лист
     if best_attribute is None:
         return DecisionNode(label=find_most_common_label(labels), is_leaf=True)
 
-    # Создаем узел для текущего разбиения
     node = DecisionNode(attribute=best_attribute, threshold=best_threshold)
 
-    # Для числовых атрибутов
     if attribute_types[best_attribute] == 'numerical':
         left_samples, left_labels, right_samples, right_labels = best_split_data
         node.branches['<='] = build_tree(
-            left_samples, left_labels, attribute_types, min_samples_split, depth + 1
+            left_samples, left_labels, attribute_types, min_samples_split, max_features, depth + 1
         )
         node.branches['>'] = build_tree(
-            right_samples, right_labels, attribute_types, min_samples_split, depth + 1
+            right_samples, right_labels, attribute_types, min_samples_split, max_features, depth + 1
         )
-
-    # Для категориальных атрибутов
     else:
         for value, (sub_samples, sub_labels) in best_split_data.items():
             node.branches[value] = build_tree(
-                sub_samples, sub_labels, attribute_types, min_samples_split, depth + 1
+                sub_samples, sub_labels, attribute_types, min_samples_split, max_features, depth + 1
             )
 
     return node

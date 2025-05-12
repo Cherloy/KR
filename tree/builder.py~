@@ -40,7 +40,7 @@ def calculate_gain_ratio(parent_labels, child_groups, child_weights):
     return information_gain / split_information
 
 
-def find_best_split(data, labels, attribute_types, max_features=None, verbose=False):
+def find_best_split(data, labels, attribute_types, max_features=None, verbose=True):
     """
     Находит лучший атрибут и порог для разбиения данных.
 

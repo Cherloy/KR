@@ -2,7 +2,7 @@ from data.load_dataset import load_iris_dataset
 from tree.builder import build_tree
 from tree.predict import predict_batch, predict_single
 from prune.post_prune import prune_tree
-from forest.random_forest_weight import RandomForestC45
+from forest.random_forest import RandomForestC45
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score
 from data.statistics import compute_feature_stats, is_outlier
@@ -21,12 +21,12 @@ def train_and_evaluate(forest_verbose= False):
 
     # Разделяем данные на тренировочные и тестовые
     temp_samples, test_samples, temp_labels, test_labels = train_test_split(
-        samples, labels, test_size=0.2
+        samples, labels, test_size=0.2, random_state= 42
     )
 
     # Делим тренировочные данные на build и validation
     build_samples, val_samples, build_labels, val_labels = train_test_split(
-        temp_samples, temp_labels, test_size=0.2
+        temp_samples, temp_labels, test_size=0.2, random_state= 42
     )
 
     # Вычисляем статистики признаков
