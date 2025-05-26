@@ -1,7 +1,7 @@
 import random
 from collections import Counter, defaultdict
 from tree.builder import build_tree
-from tree.predict import predict_single, predict_batch  # если predict_batch нет — можно реализовать отдельно
+from tree.predict import predict_single, predict_batch
 
 class RandomForestC45:
     def __init__(self, n_estimators=10, sample_ratio=0.8, min_samples_split=2, random_state=None):
@@ -42,7 +42,7 @@ class RandomForestC45:
                 oob_preds = predict_batch(tree, oob_data, attribute_types)
                 acc = self.compute_accuracy(oob_preds, oob_labels)
             else:
-                acc = 0.5  # если нет OOB-примеров — нейтральный вес
+                acc = 0.5
             self.tree_weights.append(acc)
 
     def predict(self, dataset):

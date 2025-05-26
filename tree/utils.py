@@ -1,16 +1,5 @@
 def print_tree(node, attribute_names=None, indent="", attribute_types=None):
-    """
-    Выводит структуру дерева решений в читаемом виде.
 
-    Для числовых признаков показывает пороговые условия (<= порог).
-    Для категориальных признаков показывает ветви для каждого значения.
-
-    Args:
-        node: Узел дерева решений (DecisionNode).
-        attribute_names: Список имен признаков (опционально, иначе 'Attr N').
-        indent: Текущий отступ для форматирования (строка).
-        attribute_types: Список типов признаков ('numerical' или 'categorical', опционально).
-    """
     if node.is_leaf:
         # Для листа выводим метку класса
         print(f"{indent}Class: {node.label}")
@@ -38,29 +27,13 @@ def print_tree(node, attribute_names=None, indent="", attribute_types=None):
             print_tree(node.branches[val], attribute_names, next_indent, attribute_types)
 
 def count_nodes(node):
-    """
-    Подсчитывает общее количество узлов в дереве.
 
-    Args:
-        node: Узел дерева решений (DecisionNode).
-
-    Returns:
-        Количество узлов (целое число).
-    """
     if node.is_leaf:
         return 1
     return 1 + sum(count_nodes(child) for child in node.branches.values())
 
 def tree_depth(node):
-    """
-    Вычисляет максимальную глубину дерева.
 
-    Args:
-        node: Узел дерева решений (DecisionNode).
-
-    Returns:
-        Глубина дерева (целое число).
-    """
     if node.is_leaf:
         return 1
     return 1 + max(tree_depth(child) for child in node.branches.values())

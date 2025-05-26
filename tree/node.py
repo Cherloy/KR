@@ -1,4 +1,4 @@
-from tree.predict import predict_single
+
 class DecisionNode:
     def __init__(self, attribute=None, threshold=None, branches=None, label=None, is_leaf=False):
         self.attribute = attribute

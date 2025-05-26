@@ -1,4 +1,4 @@
-from data.load_dataset import load_iris_dataset
+from data.load_dataset import load_titanic_dataset as load_iris_dataset
 from tree.builder import build_tree
 from tree.predict import predict_batch, predict_single
 from prune.post_prune import prune_tree
@@ -9,13 +9,7 @@ from data.statistics import compute_feature_stats, is_outlier
 from tree.utils import print_tree, count_nodes, tree_depth
 
 def train_and_evaluate(forest_verbose= False):
-    """
-    Обучает и оценивает дерево решений C4.5 и случайный лес на датасете.
 
-    Returns:
-        Кортеж: (обрезанное_дерево, случайный_лес, типы_признаков, статистики_признаков,
-                 имена_признаков, имена_классов).
-    """
     # Загружаем датасет
     samples, labels, attribute_types, feature_names, class_names = load_iris_dataset()
 
@@ -24,7 +18,6 @@ def train_and_evaluate(forest_verbose= False):
         samples, labels, test_size=0.2
     )
 
-    # Делим тренировочные данные на build и validation
     build_samples, val_samples, build_labels, val_labels = train_test_split(
         temp_samples, temp_labels, test_size=0.2
     )
@@ -98,12 +91,7 @@ def train_and_evaluate(forest_verbose= False):
     return pruned_tree, forest, attribute_types, feature_stats, feature_names, class_names
 
 def interactive_prediction(tree, forest, attribute_types, feature_stats, feature_names, class_names):
-    """
-    Интерактивно запрашивает значения признаков у пользователя и делает предсказания.
 
-    Для числовых признаков показывает диапазон (min-max), для категориальных — возможные значения.
-    Выводит человеко-читаемые названия классов из class_names.
-    """
     if len(feature_names) != len(feature_stats) or len(feature_names) != len(attribute_types):
         raise ValueError("Несоответствие количества признаков в feature_names, feature_stats или attribute_types")
 
@@ -116,7 +104,6 @@ def interactive_prediction(tree, forest, attribute_types, feature_stats, feature
             description = f"{name} (возможные значения: {values or 'неизвестно'})"
         feature_descriptions[name] = description
 
-    print("\n=== Интерактивный режим ===")
     print("Введите данные для предсказания последовательно по признакам:")
 
     user_input = []

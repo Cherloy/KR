@@ -5,42 +5,14 @@ from scipy.stats import norm
 import math
 
 def majority_class(labels):
-    """
-    Находит наиболее частую метку в списке меток.
 
-    Args:
-        labels: Список меток классов.
-
-    Returns:
-        Наиболее часто встречающаяся метка.
-    """
     return Counter(labels).most_common(1)[0][0]
 
 def compute_error(predictions, true_labels):
-    """
-    Вычисляет количество ошибок в предсказаниях по сравнению с истинными метками.
-
-    Args:
-        predictions: Список предсказанных меток.
-        true_labels: Список истинных меток.
-
-    Returns:
-        Количество ошибок (несовпадений предсказаний с истинными метками).
-    """
     return sum(pred != true_label for pred, true_label in zip(predictions, true_labels) if pred is not None)
 
-def pessimistic_error_with_CI(errors, total, z_score):
-    """
-    Вычисляет пессимистическую оценку ошибки с учетом доверительного интервала.
+def pessimistic_error(errors, total, z_score):
 
-    Args:
-        errors: Количество ошибок.
-        total: Общее количество примеров.
-        z_score: Z-значение для доверительного интервала (зависит от уровня доверия).
-
-    Returns:
-        Пессимистическая оценка доли ошибок.
-    """
     if total == 0:
         return 0
 
@@ -55,20 +27,7 @@ def pessimistic_error_with_CI(errors, total, z_score):
     return numerator / denominator
 
 def prune_tree(node, validation_samples, validation_labels, attribute_types, confidence_factor=0.25, error_tolerance =1):
-    """
-    Рекурсивно обрезает дерево решений, сравнивая ошибки до и после обрезки.
 
-    Args:
-        node: Текущий узел дерева (DecisionNode).
-        validation_samples: Валидационные данные (список объектов).
-        validation_labels: Метки классов для валидационных данных.
-        attribute_types: Список типов атрибутов ('numerical' или 'categorical').
-        confidence_factor: Уровень значимости для доверительного интервала (по умолчанию 0.25).
-        error_tolerance: терпимость к ошибке
-
-    Returns:
-        Обрезанный узел или исходный узел, если обрезка не улучшает результат.
-    """
     # Если узел — лист или нет валидационных данных, возвращаем его без изменений
     if node.is_leaf or not validation_samples:
         return node
@@ -128,10 +87,10 @@ def prune_tree(node, validation_samples, validation_labels, attribute_types, con
 
     # Вычисляем пессимистические оценки ошибок
     z_score = norm.ppf(1 - confidence_factor)
-    current_error_rate = pessimistic_error_with_CI(
+    current_error_rate = pessimistic_error(
         current_error_count, len(validation_labels), z_score
     )
-    leaf_error_rate = pessimistic_error_with_CI(
+    leaf_error_rate = pessimistic_error(
         leaf_error_count, len(validation_labels), z_score
     )
 

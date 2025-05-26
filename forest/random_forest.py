@@ -11,7 +11,7 @@ class RandomForestC45:
         self.min_samples_split = min_samples_split
         self.max_features = max_features
         self.random_state = random_state
-        self.debug = debug  # Параметр для включения отладки
+        self.debug = debug
         self.trees = []
         self.attribute_types = None
 
@@ -26,7 +26,6 @@ class RandomForestC45:
             sampled_data = [dataset[i] for i in indices]
             sampled_labels = [labels[i] for i in indices]
 
-            # Отладка бэггинга
             if self.debug:
                 unique_indices = len(set(indices))
                 print(f"Tree {i + 1}: {len(indices)} samples, {unique_indices} unique indices "

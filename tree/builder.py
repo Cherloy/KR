@@ -1,5 +1,5 @@
 import math
-import random  # Добавляем random для выборки признаков
+import random
 from collections import Counter
 from tree.node import DecisionNode
 from tree.splitter import split_numeric, split_categorical, generate_numeric_thresholds
@@ -7,14 +7,12 @@ from tree.metrics import entropy
 
 
 def find_most_common_label(labels):
-    """Возвращает наиболее частую метку в списке."""
+
     return Counter(labels).most_common(1)[0][0]
 
 
 def calculate_gain_ratio(parent_labels, child_groups, child_weights):
-    """
-    Вычисляет Gain Ratio с учетом пропущенных значений.
-    """
+
     total_weight = sum(child_weights)
 
     # Взвешенная энтропия дочерних групп
@@ -41,19 +39,7 @@ def calculate_gain_ratio(parent_labels, child_groups, child_weights):
 
 
 def find_best_split(data, labels, attribute_types, max_features=None, verbose=False):
-    """
-    Находит лучший атрибут и порог для разбиения данных.
 
-    Args:
-        data: Список объектов (каждый объект - список значений атрибутов).
-        labels: Метки классов для каждого объекта.
-        attribute_types: Список типов атрибутов ('numerical' или 'categorical').
-        max_features: Максимальное количество признаков для рассмотрения (int или float, например, 'sqrt').
-        verbose: Если True, выводит отладочную информацию.
-
-    Returns:
-        Кортеж: (индекс атрибута, порог (для числовых), данные разбиения).
-    """
     best_gain_ratio = -1
     best_attribute = None
     best_threshold = None
@@ -64,7 +50,7 @@ def find_best_split(data, labels, attribute_types, max_features=None, verbose=Fa
 
     # Определяем, какие признаки рассматривать
     if max_features is None:
-        feature_indices = list(range(n_features))  # Все признаки
+        feature_indices = list(range(n_features))
     else:
         # Вычисляем количество признаков для выборки
         if max_features == 'sqrt':
@@ -76,12 +62,12 @@ def find_best_split(data, labels, attribute_types, max_features=None, verbose=Fa
         else:
             n_subset = max_features
         # Случайно выбираем подмножество признаков
-        n_subset = min(n_subset, n_features)  # Убедимся, что не превышаем число признаков
+        n_subset = min(n_subset, n_features)
         feature_indices = random.sample(range(n_features), n_subset)
 
     # Перебираем только выбранные признаки
     for attr_index in feature_indices:
-        # Разделяем данные на известные и пропущенные
+
         known_samples, known_labels = [], []
         missing_samples, missing_labels = [], []
 
@@ -165,20 +151,7 @@ def find_best_split(data, labels, attribute_types, max_features=None, verbose=Fa
 
 
 def build_tree(data, labels, attribute_types, min_samples_split=2, max_features=None, depth=0):
-    """
-    Рекурсивно строит дерево решений.
 
-    Args:
-        data: Список объектов.
-        labels: Метки классов.
-        attribute_types: Типы атрибутов ('numerical' или 'categorical').
-        min_samples_split: Минимальное количество объектов для разбиения.
-        max_features: Максимальное количество признаков для рассмотрения (int, float, 'sqrt' или 'log2').
-        depth: Текущая глубина дерева.
-
-    Returns:
-        Узел дерева (DecisionNode).
-    """
     if len(set(labels)) == 1:
         return DecisionNode(label=labels[0], is_leaf=True)
 

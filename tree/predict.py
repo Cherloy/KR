@@ -1,15 +1,7 @@
 from collections import Counter
 
 def majority_class_in_tree(node):
-    """
-    Находит наиболее частую метку класса в поддереве.
 
-    Args:
-        node: Узел дерева решений (DecisionNode).
-
-    Returns:
-        Наиболее частая метка в поддереве или None, если меток нет.
-    """
     # Если узел отсутствует, возвращаем None
     if node is None:
         return None
@@ -31,18 +23,7 @@ def majority_class_in_tree(node):
     return None
 
 def predict_single(node, sample, attribute_types, default_class=0):
-    """
-    Прогнозирует метку класса для одного объекта, проходя по дереву решений.
 
-    Args:
-        node: Текущий узел дерева решений (DecisionNode).
-        sample: Объект (список значений атрибутов).
-        attribute_types: Список типов атрибутов ('numerical' или 'categorical').
-        default_class: Метка по умолчанию, если предсказание невозможно.
-
-    Returns:
-        Прогнозируемая метка класса.
-    """
     # Если узел — лист, возвращаем его метку
     if node.is_leaf:
         return node.label
@@ -68,18 +49,7 @@ def predict_single(node, sample, attribute_types, default_class=0):
     return predict_single(next_node, sample, attribute_types, default_class)
 
 def predict_batch(tree, samples, attribute_types, default_class=0):
-    """
-    Прогнозирует метки классов для набора объектов.
 
-    Args:
-        tree: Корень дерева решений (DecisionNode).
-        samples: Список объектов (каждый объект — список значений атрибутов).
-        attribute_types: Список типов атрибутов ('numerical' или 'categorical').
-        default_class: Метка по умолчанию, если предсказание невозможно.
-
-    Returns:
-        Список прогнозируемых меток.
-    """
     predictions = []
 
     # Прогнозируем метку для каждого объекта
